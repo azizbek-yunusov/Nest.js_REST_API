@@ -1,19 +1,52 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
 
-  create(createUserDto: CreateUserDto) {
+  async onModuleInit() {
+    const existingAdmin = await this.userRepository.findOne({
+      where: { username: 'admin' },
+    });
+    if (!existingAdmin) {
+      const saltOrRounds = 10;
+      const hashedPassword = await bcrypt.hash('admin123', saltOrRounds);
+      const defaultAdmin: CreateUserDto = {
+        firstName: 'Admin',
+        lastName: 'User',
+        username: 'admin',
+        position: 'Administrator',
+        password: hashedPassword,
+        role: UserRole.ADMIN,
+      };
+      const adminUser = this.userRepository.create(defaultAdmin);
+      await this.userRepository.save(adminUser);
+      console.log('Default admin user created');
+    } else {
+      console.log('Default admin user already exists');
+    }
+  }
+  async create(createUserDto: CreateUserDto) {
+    const existingUser = await this.userRepository.findOne({
+      where: { username: createUserDto.username },
+    });
+    if (existingUser) {
+      throw new BadRequestException('Username already exists');
+    }
     const saltOrRounds = 10;
     const hashedPassword = bcrypt.hashSync(
       createUserDto.password,

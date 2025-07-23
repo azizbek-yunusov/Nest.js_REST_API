@@ -6,6 +6,15 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum UserRole {
+  ADMIN = 'admin',
+  EDITOR = 'editor',
+  TRANSLATOR = 'translator',
+  VIEWER = 'viewer',
+  HR = 'hr',
+  MANAGER = 'manager',
+}
+
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -26,8 +35,17 @@ export class User {
   @Column()
   password: string;
 
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.VIEWER })
+  role: UserRole;
+
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ default: 'active' })
+  status: 'active' | 'inactive' | 'banned';
+
+  @Column({ default: 'uz' })
+  preferedLang: 'uz' | 'ru' | 'en';
 
   @CreateDateColumn()
   createdAt: Date;
