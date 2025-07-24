@@ -8,20 +8,25 @@ import {
   Delete,
   UseInterceptors,
   UploadedFiles,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { CreatePostTypeDto } from './dto/create-post-type.dto';
-import { ApiConsumes, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+@ApiBearerAuth()
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @UseInterceptors(
     FilesInterceptor('images', 6, {
@@ -34,6 +39,8 @@ export class PostsController {
       }),
     }),
   )
+  // Yuqorida destination: './uploads/images' shu joyga rasmni joylash
+  // filename bilan shu papkaga saqlanadigan rasm nomi konfilik bolmasligi uchun
   @ApiConsumes('multipart/form-data')
   create(
     @Body() createPostDto: CreatePostDto,
@@ -42,6 +49,7 @@ export class PostsController {
     return this.postsService.createWithImages(createPostDto, files);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.postsService.findAll();
@@ -70,7 +78,7 @@ export class PostsController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.postsService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.postsService.remove(id);
   }
 }

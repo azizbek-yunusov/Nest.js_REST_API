@@ -1,8 +1,8 @@
 {
-  "name": "NestJs_REST_API_Project",
+  "name": "nest.js_rest_api",
   "version": "0.0.1",
   "description": "",
-  "author": "",
+  "author": "Azizbek Yunusov",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

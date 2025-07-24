@@ -1,5 +1,9 @@
 import { Express } from 'express';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,6 +12,9 @@ import { Post } from './entities/post.entity';
 import { PostType } from './entities/post-type.entity';
 import { CreatePostTypeDto } from './dto/create-post-type.dto';
 import { PostImage } from './entities/post-image.entity';
+import * as path from 'path';
+import * as fs from 'fs';
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -26,11 +33,10 @@ export class PostsService {
     });
 
     const savedPost = await this.postRepo.save(post);
-    console.log(files);
 
     const images = files.map((file) =>
       this.postImageRepo.create({
-        url: `/uploads/posts/${file.filename}`,
+        url: `/uploads/images/${file.filename}`,
         post: savedPost,
       }),
     );
@@ -83,7 +89,32 @@ export class PostsService {
     return `This action update a #${id} post`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  async remove(id: number) {
+    const post = await this.postRepo.findOne({
+      where: { id },
+      relations: ['images'],
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    for (const image of post.images) {
+      if (!image?.url) continue;
+      // import * as path from 'path'; import qilish shu korinishda bolishi kerak
+      const filename = path.basename(image.url);
+
+      // process.swd() loyiha izi __dirname da dist/ ga kirib ketadi
+      const imagePath = path.join(process.cwd(), 'uploads', 'images', filename);
+
+      try {
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      } catch (err) {
+        console.error('Fayl o‘chirishda xatolik:', err);
+      }
+    }
+
+    await this.postRepo.remove(post);
   }
 }
