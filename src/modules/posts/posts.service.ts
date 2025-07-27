@@ -81,12 +81,50 @@ export class PostsService {
     return this.postTypeRepo.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
+  async findOne(id: number) {
+    const post = await this.postRepo.findOne({
+      where: { id },
+      relations: ['images'],
+    });
+    if (!post) {
+      throw new NotFoundException(`Post with id: ${id} not found`);
+    }
+
+    return post;
   }
 
-  update(id: number, updatePostDto: UpdatePostDto) {
-    return `This action update a #${id} post`;
+  async update(
+    id: number,
+    updatePostDto: UpdatePostDto,
+    files: Express.Multer.File[],
+  ) {
+    const post = await this.postRepo.findOne({
+      where: { id },
+      relations: ['images'],
+    });
+    if (!post) {
+      throw new NotFoundException(`Post with id: ${id} not found`);
+    }
+
+    Object.assign(post, updatePostDto);
+
+    console.log(post);
+
+    const updatedPost = await this.postRepo.save(post);
+
+    const images = files.map((img) =>
+      this.postImageRepo.create({
+        url: `/uploads/images/${img.filename}`,
+        post: updatedPost,
+      }),
+    );
+
+    await this.postImageRepo.save(images);
+
+    return this.postRepo.find({
+      where: { id },
+      relations: ['images'],
+    });
   }
 
   async remove(id: number) {
@@ -116,5 +154,40 @@ export class PostsService {
     }
 
     await this.postRepo.remove(post);
+
+    return { ...post };
+  }
+  async deletePostImage(id: number) {
+    console.log(id);
+
+    const postImage = await this.postImageRepo.findOne({ where: { id } });
+    if (!postImage) {
+      throw new NotFoundException(`Post image with id:${id} not foud`);
+    }
+    console.log(postImage);
+
+    const filename = path.basename(postImage.url);
+
+    const imagePath = path.join(process.cwd(), 'uploads', 'images', filename);
+
+    try {
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    } catch (err) {
+      console.log('Image delete error:', err);
+    }
+
+    // const post = await this.postRepo.findOne({
+    //   where: { id: postImage.post.id },
+    //   relations: ['images'],
+    // });
+
+    // if (post) {
+    //   post.images = post.images.filter((img) => img.id !== id);
+
+    //   await this.postRepo.save(post);
+    // }
+    await this.postImageRepo.remove(postImage);
   }
 }

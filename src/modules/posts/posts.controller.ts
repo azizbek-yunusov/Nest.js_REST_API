@@ -66,19 +66,40 @@ export class PostsController {
   findAllTypes() {
     return this.postsService.findAllTypes();
   }
-
+  // ParseIntPipe bunda number typega shart
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.postsService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.postsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
-    return this.postsService.update(+id, updatePostDto);
+  @UseInterceptors(
+    FilesInterceptor('images', 6, {
+      storage: diskStorage({
+        destination: './uploads/images',
+        filename: (res, file, cb) => {
+          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, unique + extname(file.originalname));
+        },
+      }),
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePostDto: UpdatePostDto,
+    @UploadedFiles() images: Express.Multer.File[],
+  ) {
+    return this.postsService.update(id, updatePostDto, images);
   }
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.postsService.remove(id);
+  }
+
+  @Delete('images/:id')
+  removeImage(@Param('id', ParseIntPipe) id: number) {
+    return this.postsService.deletePostImage(id);
   }
 }
